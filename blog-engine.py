@@ -3,6 +3,7 @@ import sys
 import markdown
 import json
 import xml.etree.ElementTree as ET
+from dotenv import load_dotenv
 
 def readFile(filename: str) -> str:
     """
@@ -63,19 +64,24 @@ def compile_content(filename: str, header: str, footer: str):
     if os.path.exists("tempheader.html"):
         os.remove("tempheader.html")
 
-def convert_to_html(markdown_file: str) -> int:
+def convert_to_html(full_markdown_file: str) -> int:
     """
     Returns True if the markdown file is converted to an html file
     """
-    BLOG_HEADER = "blog_post_header.html"
-    BLOG_FOOTER = "blog_post_footer.html"
+    BLOG_HEADER = os.getenv("BLOG_HEADER")
+    BLOG_FOOTER = os.getenv("BLOG_FOOTER")
+    BLOG_LOCATION = os.getenv("BLOG_LOCATION")
+    MK_LOC_LEN = len(os.getenv("MARKDOWN_LOCATION"))
+    markdown_file = full_markdown_file[MK_LOC_LEN:]
+    #BLOG_HEADER = "blog_post_header.html"
+    #BLOG_FOOTER = "blog_post_footer.html"
 
     try:
         html_file_name = markdown_file.split(".md")[0] + ".html"
 
         # Getting metadata for <head>
         # metadata = ['url','title','description']
-        metadata = get_metadata(markdown_file)
+        metadata = get_metadata(full_markdown_file)
         header = readFile(BLOG_HEADER)
         head = header[:header.find('</head>') - 1]
         head += f'\t\t<meta property="og:url" content="https://notneelpatel.github.io/blog/{html_file_name}"/>'
@@ -88,27 +94,33 @@ def convert_to_html(markdown_file: str) -> int:
         f.close()
 
         # Convert from markdown to html
-        markdown.markdownFromFile(input=markdown_file, output="content.html")
+        markdown.markdownFromFile(input=full_markdown_file, output="content.html")
         
         # Compile header, content, and footer
-        compile_content(html_file_name, 'tempheader.html', BLOG_FOOTER)
+        compile_content(BLOG_LOCATION + html_file_name, 'tempheader.html', BLOG_FOOTER)
         return(True)
     except:
         print("epic fail!")
         return(False)
 
-def update_blog_home(markdown_file: str):
+def update_blog_home(full_markdown_file: str):
     """
     Adds new blog entry to the blog list and compiles blog home page
     """
-    BLOG_LIST = "bloglist.md"
-    HEADER = "blog_home_header.html"
-    FOOTER = "blog_home_footer.html"
+    BLOG_LIST = os.getenv("BLOG_LIST")
+    HEADER = os.getenv("BLOG_HOME_HEADER")
+    FOOTER = os.getenv("BLOG_HOME_FOOTER")
+    BLOG_HOME = os.getenv("BLOG_HOME")
+    MK_LOC_LEN = len(os.getenv("MARKDOWN_LOCATION"))
+    markdown_file = full_markdown_file[MK_LOC_LEN:]
+    #BLOG_LIST = "bloglist.md"
+    #HEADER = "blog_home_header.html"
+    #FOOTER = "blog_home_footer.html"
 
     # Parse data
     # metadata = ['url','title','description']
     html_file_name = markdown_file.split(".md")[0] + ".html"
-    metadata = get_metadata(markdown_file)
+    metadata = get_metadata(full_markdown_file)
     date = markdown_file[:10]
     entry = f"{date} [{metadata[0]}](./blog/{html_file_name})"
 
@@ -122,20 +134,23 @@ def update_blog_home(markdown_file: str):
     
     # Convert blog list to html and compile
     markdown.markdownFromFile(input = BLOG_LIST, output = "content.html")
-    compile_content("blog.html", HEADER, FOOTER)
+    compile_content(BLOG_HOME, HEADER, FOOTER)
 
-def update_search(markdown_file: str):
+def update_search(full_markdown_file: str):
     """
     Adds new blog entry  to search index
     """
-    SEARCH_INDEX = "searchindex.json"
+    SEARCH_INDEX = os.getenv("SEARCH_INDEX")
+    MK_LOC_LEN = len(os.getenv("MARKDOWN_LOCATION"))
+    markdown_file = full_markdown_file[MK_LOC_LEN:]
+    #SEARCH_INDEX = "searchindex.json"
 
     # Parse data
     with open(SEARCH_INDEX) as json_file:
         parsed_json = json.loads(json_file.read())
     
     html_file_name = markdown_file.split(".md")[0] + ".html"
-    metadata = get_metadata(markdown_file)
+    metadata = get_metadata(full_markdown_file)
     date = markdown_file[:10]
     url = f"https://notneelpatel.github.io/blog/{html_file_name}"
 
@@ -146,14 +161,17 @@ def update_search(markdown_file: str):
     with open(SEARCH_INDEX, "w") as write_file:
         json.dump(parsed_json, write_file)
 
-def update_rss_feed(markdown_file: str):
+def update_rss_feed(full_markdown_file: str):
     """
     Adds new blog entry to the rss feed
     """
-    FEED = "feed.xml"
+    FEED = os.getenv("FEED")
+    MK_LOC_LEN = len(os.getenv("MARKDOWN_LOCATION"))
+    markdown_file = full_markdown_file[MK_LOC_LEN:]
+    #FEED = "feed.xml"
     
     # Get data
-    metadata = get_metadata(markdown_file)
+    metadata = get_metadata(full_markdown_file)
     html_file_name = markdown_file.split(".md")[0] + ".html"
     url = f"https://notneelpatel.github.io/blog/{html_file_name}"
     tree = ET.parse(FEED)
@@ -182,15 +200,23 @@ def update_rss_feed(markdown_file: str):
     # Write to xml file
     tree.write(FEED)
 
-def update_latest(markdown_file):
+def update_latest(full_markdown_file):
+    """
+    Updates the blog/latest.html to the latest blog
+    """
+    LATEST = os.getenv("LATEST")
+    MK_LOC_LEN = len(os.getenv("MARKDOWN_LOCATION"))
+    markdown_file = full_markdown_file[MK_LOC_LEN:]
+    #LATEST = "latest.html"
+
     html_file_name = markdown_file.split(".md")[0] + ".html"
-    LATEST = "latest.html"
     f = open(LATEST, 'w')
     f.write(f'<!DOCTYPE html>\n<meta http-equiv="Refresh" content = "0; url=\'{html_file_name}\'"/>\n</html>')
     f.close()
 
 
 if __name__ == "__main__":
+    load_dotenv()
     if len(sys.argv) > 2:
         command = str(sys.argv[1])
         markdown_file = str(sys.argv[2])
@@ -198,10 +224,10 @@ if __name__ == "__main__":
     else: 
         markdown_file = str(sys.argv[1])
         if (convert_to_html(markdown_file)):
-            #update_blog_home(markdown_file)
-            #update_search(markdown_file)
+            update_blog_home(markdown_file)
+            update_search(markdown_file)
             update_rss_feed(markdown_file)
-            #update_latest(markdown_file)
+            update_latest(markdown_file)
 
 
         
